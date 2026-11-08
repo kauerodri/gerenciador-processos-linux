@@ -1,0 +1,6 @@
+# Binários compilados
+gp
+*.o
+*.out
+*.exe
+Gerenciador_de_Processos_IFCE.zip

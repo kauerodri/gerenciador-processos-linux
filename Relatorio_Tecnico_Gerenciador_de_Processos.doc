@@ -1,0 +1,270 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+<meta charset="utf-8">
+<title>Relatório Técnico - Gerenciador de Processos (GP)</title>
+<style>
+    @page {
+        size: A4;
+        margin: 2.5cm 2.5cm 2.5cm 3.0cm;
+    }
+    body {
+        font-family: Arial, sans-serif;
+        font-size: 11pt;
+        line-height: 1.5;
+        color: #111111;
+        text-align: justify;
+    }
+    .cabecalho {
+        text-align: center;
+        border-bottom: 2px solid #1b5e20;
+        padding-bottom: 12px;
+        margin-bottom: 24px;
+    }
+    .cabecalho h1 {
+        font-size: 14pt;
+        margin: 2px 0;
+        color: #1b5e20;
+        text-transform: uppercase;
+    }
+    .cabecalho p {
+        margin: 2px 0;
+        font-size: 11pt;
+        text-align: center;
+    }
+    .titulo-projeto {
+        text-align: center;
+        font-size: 15pt;
+        font-weight: bold;
+        margin: 22px 0;
+        text-transform: uppercase;
+    }
+    h2 {
+        font-size: 13pt;
+        color: #1b5e20;
+        border-bottom: 1px solid #cccccc;
+        padding-bottom: 4px;
+        margin-top: 22px;
+        margin-bottom: 10px;
+    }
+    h3 {
+        font-size: 11.5pt;
+        color: #222222;
+        margin-top: 16px;
+        margin-bottom: 6px;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 12px 0 18px 0;
+        font-size: 10.5pt;
+    }
+    th, td {
+        border: 1px solid #555555;
+        padding: 8px 10px;
+        text-align: left;
+        vertical-align: top;
+    }
+    th {
+        background-color: #e8f5e9;
+        color: #1b5e20;
+        font-weight: bold;
+    }
+    code, pre {
+        font-family: "Courier New", Courier, monospace;
+        background-color: #f5f5f5;
+        font-size: 10pt;
+    }
+    pre {
+        padding: 10px;
+        border: 1px solid #dddddd;
+        white-space: pre-wrap;
+    }
+    ul {
+        margin-top: 6px;
+        margin-bottom: 12px;
+    }
+    li {
+        margin-bottom: 6px;
+    }
+</style>
+</head>
+<body>
+
+<div class="cabecalho">
+    <h1>Instituto Federal de Educação, Ciência e Tecnologia do Ceará — Campus Crato</h1>
+    <p><strong>Curso:</strong> Bacharelado em Sistemas de Informação</p>
+    <p><strong>Disciplina:</strong> Sistemas Distribuídos &nbsp;|&nbsp; <strong>Professor:</strong> Guilherme Esmeraldo</p>
+</div>
+
+<div class="titulo-projeto">
+    Relatório Técnico de Projeto<br>
+    GERENCIADOR DE PROCESSOS (GP) PARA GNU/LINUX
+</div>
+
+<h2>1. Identificação do Autor</h2>
+<table>
+    <thead>
+        <tr>
+            <th style="width: 45%;">Nome Completo do Aluno</th>
+            <th style="width: 30%;">E-mail</th>
+            <th style="width: 25%;">GitHub</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>Kauê Rodrigues Grangeiro</strong></td>
+            <td>kauerodrigues089@gmail.com</td>
+            <td>github.com/kauerodri</td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>2. Introdução e Objetivos</h2>
+<p>
+    Em Sistemas Operacionais modernos multitarefa (como o GNU/Linux), o núcleo (<em>kernel</em>) atua como escalonador de tempo de processador (<em>time-sharing</em>), alternando fatias de tempo (<em>time slices</em>) entre múltiplos processos concorrentes. Para administrar esses recursos de forma eficaz, o sistema operacional disponibiliza primitivas (chamadas de sistema) e interfaces virtuais do kernel que permitem inspecionar e controlar o ciclo de vida e a prioridade de escalonamento das tarefas.
+</p>
+<p>
+    O presente relatório descreve o projeto e a implementação de um <strong>Gerenciador de Processos (GP)</strong> desenvolvido em <strong>linguagem C</strong> para o sistema operacional <strong>GNU/Linux</strong>, utilizando diretamente as chamadas de sistema POSIX/Linux e o sistema de arquivos virtual <code>/proc</code> (<em>procfs</em>), sem depender da invocação de comandos externos via <code>system()</code>.
+</p>
+
+<h2>3. Descrição das Soluções de Software Adotadas</h2>
+
+<h3>3.1. Leitura Direta do Sistema de Arquivos Virtual /proc (procfs)</h3>
+<ul>
+    <li><strong>Varredura de Processos Ativos (<code>opendir</code> / <code>readdir</code>):</strong> O diretório <code>/proc</code> é percorrido filtrando-se apenas os subdiretórios cujo nome é estritamente numérico, cada um correspondendo ao <code>PID</code> de um processo ativo no sistema.</li>
+    <li><strong>Identificação do Proprietário (<code>stat</code>, <code>getpwuid</code> e <code>getpwnam</code>):</strong> A chamada de sistema <code>stat("/proc/[pid]", &amp;st)</code> obtém o <code>st_uid</code> do inode do processo, que reflete o UID real do proprietário. Em seguida, a função POSIX <code>getpwuid()</code> consulta a base de usuários (<code>/etc/passwd</code>) para traduzir o UID para o nome de usuário (<code>USER</code>).</li>
+    <li><strong>Extração de Estado, Prioridade e Tempo de CPU (<code>/proc/[pid]/stat</code>):</strong> O arquivo <code>/proc/[pid]/stat</code> contém os metadados internos da estrutura <code>task_struct</code> do kernel. Como o 2º campo (<code>comm</code>) fica entre parênteses e pode conter espaços ou parênteses internos, o parser implementado localiza o primeiro <code>'('</code> com <code>strchr()</code> e o último <code>')'</code> com <code>strrchr()</code>, garantindo extração exata dos campos seguintes:
+        <ul>
+            <li><strong>Campo 3 (<code>state</code>):</strong> Estado atual do processo (<code>R</code>, <code>S</code>, <code>D</code>, <code>T</code>, <code>t</code>, <code>Z</code>, <code>I</code>).</li>
+            <li><strong>Campos 14 e 15 (<code>utime</code> e <code>stime</code>):</strong> Tempo de CPU acumulado em modo usuário e modo kernel, medidos em <em>clock ticks</em> (<em>jiffies</em>). A conversão para segundos reais é realizada dividindo-se <code>(utime + stime)</code> pelo valor retornado por <code>sysconf(_SC_CLK_TCK)</code>.</li>
+            <li><strong>Campo 19 (<code>nice</code>):</strong> Valor de prioridade <code>NICE</code> do processo no intervalo de <code>-20</code> (maior prioridade) a <code>+19</code> (menor prioridade).</li>
+        </ul>
+    </li>
+    <li><strong>Recuperação da Linha de Comando (<code>/proc/[pid]/cmdline</code>):</strong> Utilizada tanto para exibição detalhada quanto para reconstruir o vetor <code>argv[]</code> original na operação de <strong>Reiniciar processo</strong>.</li>
+</ul>
+
+<h3>3.2. Chamadas de Sistema (System Calls) Utilizadas</h3>
+<ul>
+    <li><code>kill(pid, sig)</code>: Envio de sinais POSIX para transição de estados (<code>SIGSTOP</code> para bloquear, <code>SIGCONT</code> para continuar, <code>SIGTERM</code> e <code>SIGKILL</code> para finalizar).</li>
+    <li><code>fork()</code> e <code>execvp()</code> / <code>execv()</code>: Criação de novos processos filhos e substituição da imagem de memória para execução e reinicialização de programas.</li>
+    <li><code>setpriority(PRIO_PROCESS, pid, nice)</code> e <code>getpriority(PRIO_PROCESS, pid)</code>: Consulta e alteração direta da prioridade de escalonamento (<code>NICE</code>) tanto de processos já em execução quanto de novos processos antes da chamada <code>execvp()</code>.</li>
+    <li><code>waitpid(pid, NULL, WNOHANG)</code>: Coleta assíncrona de processos filhos encerrados para evitar a formação de processos zumbis (<code>Z</code>).</li>
+    <li><code>pipe()</code>, <code>fcntl(FD_CLOEXEC)</code>, <code>dup2()</code>: Sincronização entre processo pai e filho para detectar falhas imediatas caso o comando informado pelo usuário não exista ao chamar <code>execvp()</code>.</li>
+</ul>
+
+<h2>4. Detalhamento das Funções Implementadas</h2>
+<table>
+    <thead>
+        <tr>
+            <th style="width: 28%;">Função</th>
+            <th style="width: 34%;">Assinatura em C</th>
+            <th style="width: 38%;">Descrição Técnica</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>obter_info_processo</code></td>
+            <td><code>int obter_info_processo(pid_t pid, ProcessoInfo *info)</code></td>
+            <td>Lê <code>/proc/[pid]</code>, <code>/proc/[pid]/stat</code> e <code>/proc/[pid]/cmdline</code>, preenchendo a struct <code>ProcessoInfo</code> com <code>PID</code>, <code>USER</code>, <code>NICE</code>, <code>STATUS</code>, <code>TIME</code> e linha de comando.</td>
+        </tr>
+        <tr>
+            <td><code>listar_processos_usuario</code></td>
+            <td><code>void listar_processos_usuario(const char *nome_usuario)</code></td>
+            <td>Converte o nome do usuário em <code>UID</code> via <code>getpwnam()</code>, percorre <code>/proc</code> e exibe uma tabela formatada com todos os processos pertencentes a ele.</td>
+        </tr>
+        <tr>
+            <td><code>consultar_processo_pid</code></td>
+            <td><code>void consultar_processo_pid(pid_t pid)</code></td>
+            <td>Exibe o painel detalhado de um processo específico (<code>PID</code>, <code>NICE</code>, <code>USER</code>, <code>TIME</code> em <code>HH:MM:SS.cc</code> e <code>STATUS</code> traduzido).</td>
+        </tr>
+        <tr>
+            <td><code>bloquear_processo</code></td>
+            <td><code>int bloquear_processo(pid_t pid)</code></td>
+            <td>Suspende a execução de um processo enviando o sinal <code>SIGSTOP</code> via <code>kill(pid, SIGSTOP)</code>, levando-o ao estado <code>T</code>.</td>
+        </tr>
+        <tr>
+            <td><code>continuar_processo</code></td>
+            <td><code>int continuar_processo(pid_t pid)</code></td>
+            <td>Verifica se o processo encontra-se bloqueado (<code>state == 'T'</code> ou <code>'t'</code>) e, em caso afirmativo, envia <code>SIGCONT</code> via <code>kill(pid, SIGCONT)</code>.</td>
+        </tr>
+        <tr>
+            <td><code>executar_novo_processo</code></td>
+            <td><code>pid_t executar_novo_processo(const char *cmd, int def_nice, int val_nice)</code></td>
+            <td>Separa os argumentos, cria um processo filho via <code>fork()</code>, ajusta opcionalmente o <code>NICE</code> com <code>setpriority()</code> antes do <code>execvp()</code> e executa o comando em background.</td>
+        </tr>
+        <tr>
+            <td><code>reiniciar_processo</code></td>
+            <td><code>int reiniciar_processo(pid_t pid)</code></td>
+            <td>Lê <code>/proc/[pid]/cmdline</code>, <code>/proc/[pid]/exe</code>, <code>/proc/[pid]/cwd</code> e o <code>nice</code> atual; encerra o processo antigo com <code>SIGTERM</code> e cria uma nova instância idêntica com <code>fork()</code> + <code>execv()</code>.</td>
+        </tr>
+        <tr>
+            <td><code>finalizar_processo</code></td>
+            <td><code>int finalizar_processo(pid_t pid, int forcar_sigkill)</code></td>
+            <td>Encerra um processo enviando <code>SIGTERM</code> (15 - término gracioso) ou <code>SIGKILL</code> (9 - término imediato forçado).</td>
+        </tr>
+        <tr>
+            <td><code>alterar_prioridade_em_execucao</code></td>
+            <td><code>int alterar_prioridade_em_execucao(pid_t pid, int novo_nice)</code></td>
+            <td>Valida o intervalo <code>[-20, +19]</code> e aplica a nova prioridade ao processo em execução usando <code>setpriority(PRIO_PROCESS, pid, novo_nice)</code>.</td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>5. Recursos de Interface Utilizados</h2>
+<p>O software oferece duas modalidades de interface com o usuário:</p>
+<ol>
+    <li><strong>Menu Interativo no Terminal (TUI):</strong> Ao executar <code>./gp</code> sem parâmetros, é apresentado um menu principal acompanhado de submenus para alteração de estado e de prioridade, formatação visual em cores ANSI, validação de buffer contra entradas inválidas no <code>stdin</code> e tratamento de erros detalhado (<code>errno</code>).</li>
+    <li><strong>Interface por Argumentos de Linha de Comando (CLI):</strong> Permite execução direta pelo terminal:
+        <ul>
+            <li><code>./gp -u &lt;usuario&gt;</code> — Lista todos os processos de um usuário.</li>
+            <li><code>./gp -i &lt;pid&gt;</code> — Consulta informações detalhadas do processo pelo PID.</li>
+            <li><code>./gp -b &lt;pid&gt;</code> — Bloqueia (suspende) o processo.</li>
+            <li><code>./gp -c &lt;pid&gt;</code> — Continua o processo caso esteja bloqueado.</li>
+            <li><code>./gp -e "&lt;comando&gt;"</code> — Executa um novo processo em segundo plano.</li>
+            <li><code>./gp -r &lt;pid&gt;</code> — Reinicia o processo especificado.</li>
+            <li><code>./gp -k &lt;pid&gt;</code> / <code>./gp -K &lt;pid&gt;</code> — Finaliza o processo (<code>SIGTERM</code> / <code>SIGKILL</code>).</li>
+            <li><code>./gp -p &lt;pid&gt; &lt;nice&gt;</code> — Altera a prioridade <code>NICE</code> de um processo em execução.</li>
+            <li><code>./gp -n &lt;nice&gt; "&lt;comando&gt;"</code> — Executa um novo processo definindo sua prioridade <code>NICE</code> antes da execução.</li>
+        </ul>
+    </li>
+</ol>
+
+<h2>6. Mapeamento de Atendimento aos Requisitos</h2>
+<table>
+    <thead>
+        <tr>
+            <th style="width: 38%;">Requisito da Especificação</th>
+            <th style="width: 62%;">Como foi atendido na implementação</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>a) Listar processos de um determinado usuário</strong></td>
+            <td>Atendido em <code>listar_processos_usuario()</code>, que converte o nome do usuário em UID via <code>getpwnam()</code>, percorre <code>/proc</code> e filtra pelo proprietário de cada processo.</td>
+        </tr>
+        <tr>
+            <td><strong>b) Consultar PID, NICE, USER, TIME e STATUS</strong></td>
+            <td>Atendido em <code>consultar_processo_pid()</code> e <code>obter_info_processo()</code>, extraindo os 5 indicadores obrigatórios diretamente de <code>/proc/[pid]/stat</code> e dos metadados do diretório <code>/proc/[pid]</code>.</td>
+        </tr>
+        <tr>
+            <td><strong>c) Alterar estado: Bloquear, Continuar, Executar, Reiniciar e Finalizar</strong></td>
+            <td>Atendido pelas funções <code>bloquear_processo()</code> (<code>SIGSTOP</code>), <code>continuar_processo()</code> (verifica estado <code>T</code> e envia <code>SIGCONT</code>), <code>executar_novo_processo()</code> (<code>fork</code> + <code>execvp</code>), <code>reiniciar_processo()</code> (reconstrução de <code>cmdline</code> + <code>SIGTERM</code> + <code>fork</code>/<code>execv</code>) e <code>finalizar_processo()</code> (<code>SIGTERM</code>/<code>SIGKILL</code>).</td>
+        </tr>
+        <tr>
+            <td><strong>d) Trocar prioridade de execução (em execução ou antes de executar)</strong></td>
+            <td>Atendido em <code>alterar_prioridade_em_execucao()</code> via <code>setpriority(PRIO_PROCESS, pid, novo_nice)</code> para processos ativos, e dentro do processo filho em <code>executar_novo_processo()</code> via <code>setpriority(PRIO_PROCESS, 0, valor_nice)</code> imediatamente antes do <code>execvp()</code>.</td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>7. Instruções de Compilação e Execução</h2>
+<pre>
+# Compilar o programa no GNU/Linux:
+gcc -Wall -Wextra -pedantic -O2 -o gp gerenciador_processos.c
+
+# Iniciar o Menu Interativo:
+./gp
+</pre>
+
+</body>
+</html>
