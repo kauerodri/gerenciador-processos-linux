@@ -4,7 +4,7 @@
 **Curso:** Bacharelado em Sistemas de Informação  
 **Disciplina:** Sistemas Distribuídos  
 **Professor:** Guilherme Esmeraldo  
-**Autor:** Kauê Rodrigues Grangeiro (`kauerodrigues089@gmail.com`)  
+**Autor:** Kauê Rodrigues Grangeiro   
 
 ---
 
